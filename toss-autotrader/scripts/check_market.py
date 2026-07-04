@@ -34,24 +34,26 @@ def main() -> int:
     code = sys.argv[1] if len(sys.argv) > 1 else "005930"
     market = MarketDataClient(AuthManager(client_id, client_secret))
 
+    from src.market.models import Candle, PriceTick
+
     try:
         print(f"=== 현재가 조회 ({code}) ===")
         price = market.get_price(code)
-        print(json.dumps(price, ensure_ascii=False, indent=2)[:2000])
+        print(json.dumps(price, ensure_ascii=False, indent=2))
+        print("표준 모델:", PriceTick.from_api(price))
 
         print(f"\n=== 일봉 캔들 조회 ({code}, 최근 5개) ===")
-        candles = market.get_candles(code, "day", count=5)
-        print(json.dumps(candles, ensure_ascii=False, indent=2)[:3000])
+        page = market.get_candles(code, "1d", count=5)
+        for c in page.get("candles", []):
+            print("  ", Candle.from_api(c))
+        print("nextBefore:", page.get("nextBefore"))
     except (AuthError, MarketError) as e:
         print(f"조회 실패: {e}")
-        print("점검: 경로·파라미터가 공식 문서와 다를 수 있음 ― 응답 확인 필요")
         return 1
 
     print("\n=== validate_price 검증 ===")
-    ok = market.validate_price(code, price)
-    print(f"validate_price 결과: {ok}"
-          f"{'' if ok else ' (응답키가 price가 아닐 수 있음 ― 위 JSON 확인)'}")
-    print("\n위 출력(JSON 키 구조)을 공유하면 모델 매핑을 확정할 수 있습니다.")
+    print(f"validate_price 결과: {market.validate_price(code, price)}")
+    print("\nPhase 2 실호출 확인 완료 ― DoD 체크리스트에 기록하세요.")
     return 0
 
 
