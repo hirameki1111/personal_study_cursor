@@ -66,19 +66,30 @@ git status   # .env가 표시되지 않는지 확인
 
 ## 구축 로드맵
 
-| Phase | 명칭 | 산출물 | 게이트 |
-|---|---|---|---|
-| 0 | 환경 준비 | API 키·가상환경·프로젝트 골격 ← **현재** | ― |
-| 1 | 인증·토큰 | `src/auth` AuthManager | G1 |
-| 2 | 시세 수집 | `src/market` MarketDataClient | G1 |
-| 3 | 계좌·잔고 | `src/account` AccountManager | G1 |
-| 4 | 주문(dry-run) | `src/order` OrderExecutor | G1 |
-| 5 | 전략 엔진 | `src/strategy` StrategyEngine | G2 |
-| 6 | 리스크 관리 | `src/risk` RiskManager | G2 |
-| 7 | 백테스트·페이퍼 | `src/backtest` Backtester/PaperBroker | G2·G3 |
-| 8 | 모니터링·알림 | `src/monitor` Logger/Notifier | ― |
-| 9 | 오케스트레이션 | `src/orchestrator.py` | G4 |
-| 10 | 운영·배포 | `deploy/`·운영 절차 | G5 |
+| Phase | 명칭 | 산출물 | 게이트 | 상태 |
+|---|---|---|---|---|
+| 0 | 환경 준비 | API 키·가상환경·프로젝트 골격 | ― | ✅ |
+| 1 | 인증·토큰 | `src/auth` AuthManager | G1 | ✅ 실발급 검증 |
+| 2 | 시세 수집 | `src/market` MarketDataClient | G1 | ✅ 실호출 검증 |
+| 3 | 계좌·잔고 | `src/account` AccountManager | G1 | ✅ 실호출 검증 |
+| 4 | 주문(dry-run) | `src/order` OrderExecutor | G1 | ✅ dry-run 검증 |
+| 5 | 전략 엔진 | `src/strategy` StrategyEngine | G2 | ✅ |
+| 6 | 리스크 관리 | `src/risk` RiskManager | G2 | ✅ |
+| 7 | 백테스트·페이퍼 | `src/backtest` Backtester/PaperBroker | G2·G3 | ✅ 실데이터 검증 |
+| 8 | 모니터링·알림 | `src/monitor` Logger/Notifier | ― | ✅ |
+| 9 | 오케스트레이션 | `src/orchestrator.py` | G4 | ✅ dry-run 통합 검증 |
+| 10 | 운영·배포 | `deploy/`·`docs/operations.md` | G5 | 운용 단계 진입 |
+
+게이트 통과 기록: `docs/gates.md` / 운영 절차: `docs/operations.md`
+
+## 실행
+
+```bash
+python -m src.orchestrator --once   # 1회 사이클 검증 (거래시간 무시)
+python -m src.orchestrator          # 상시 루프 (정규장만 거래)
+```
+
+모든 엔드포인트·응답키는 `spec/openapi.json`(공식 명세 v1.1.5) 대조로 확정됨.
 
 ## 주의사항
 

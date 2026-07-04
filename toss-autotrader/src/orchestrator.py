@@ -127,6 +127,8 @@ class Orchestrator:
 
         sig = strategy.generate(candles, positions)
         if sig is None or sig.side == "HOLD":
+            logger.info(f"사이클 완료({symbol}): 현재가 {last_price:,.0f}, "
+                        f"캔들 {len(candles)}개, 신호 없음")
             return
         self.store.record_signal(sig.stock_code, sig.side, sig.quantity,
                                  sig.order_type, name, sig.reason)
