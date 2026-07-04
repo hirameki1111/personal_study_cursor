@@ -16,5 +16,9 @@ class MarketError(TradingError):
     """시세 조회·검증 실패"""
 
 
+class AccountError(TradingError):
+    """계좌 조회·정합성 검증 실패"""
+
+
 class OrderError(TradingError):
     """주문 전송·상태 추적 실패"""
