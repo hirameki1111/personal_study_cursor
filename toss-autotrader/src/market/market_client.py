@@ -101,6 +101,13 @@ class MarketDataClient:
             params["before"] = before
         return self._get("/api/v1/candles", params, group="MARKET_DATA_CHART")
 
+    def get_market_calendar(self, market: str = "KR",
+                            date: str | None = None) -> dict:
+        """장 운영 정보 (전일/당일/익일). KR: today.integrated가 null이면 휴장."""
+        params = {"date": date} if date else {}
+        return self._get(f"/api/v1/market-calendar/{market}", params,
+                         group="MARKET_INFO")
+
     def get_warnings(self, symbol: str) -> list[dict]:
         """매수 유의사항·VI 발동 정보. 활성 항목만 반환됨(명세).
 
