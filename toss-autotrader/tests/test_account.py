@@ -61,10 +61,16 @@ def test_account_no_match_selects_account(am):
     assert am.account_seq == 7
 
 
-def test_account_no_mismatch_raises(am):
+def test_account_no_match_ignores_hyphens(am):
+    am._account_no = "123456789-01"      # 하이픈 포함 표기도 매칭
+    am._http.get.return_value = _resp(ACCOUNTS)
+    assert am.account_seq == 7
+
+
+def test_account_no_mismatch_raises_with_masked_candidates(am):
     am._account_no = "99999999999"
     am._http.get.return_value = _resp(ACCOUNTS)
-    with pytest.raises(AccountError, match="일치하는"):
+    with pytest.raises(AccountError, match=r"123\*+01"):
         _ = am.account_seq
 
 

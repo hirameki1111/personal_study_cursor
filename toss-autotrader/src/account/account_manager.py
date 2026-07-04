@@ -61,16 +61,30 @@ class AccountManager:
             self._account_seq = self._resolve_account_seq()
         return self._account_seq
 
+    @staticmethod
+    def _norm(no: str) -> str:
+        """계좌번호 비교용 정규화 ― 하이픈·공백 등 숫자 외 문자 제거."""
+        return "".join(ch for ch in no if ch.isdigit())
+
+    @staticmethod
+    def _mask(no: str) -> str:
+        """계좌번호 마스킹 ― 앞 3자리·뒤 2자리만 표기."""
+        return f"{no[:3]}{'*' * max(len(no) - 5, 0)}{no[-2:]}" if len(no) > 5 else "***"
+
     def _resolve_account_seq(self) -> int:
         accounts = self._get("/api/v1/accounts", with_account=False)
         brokerage = [a for a in accounts if a.get("accountType") == "BROKERAGE"]
         if self._account_no:
+            want = self._norm(self._account_no)
             matched = [a for a in brokerage
-                       if a.get("accountNo") == self._account_no]
+                       if self._norm(a.get("accountNo", "")) == want]
             if not matched:
+                candidates = ", ".join(
+                    self._mask(a.get("accountNo", "")) for a in brokerage) or "없음"
                 raise AccountError(
-                    "ACCOUNT_NO와 일치하는 BROKERAGE 계좌 없음 "
-                    "(.env ACCOUNT_NO와 계좌 목록 대조 필요)")
+                    f"ACCOUNT_NO와 일치하는 BROKERAGE 계좌 없음 "
+                    f"(보유 계좌: {candidates} ― .env ACCOUNT_NO 대조 필요. "
+                    f"단일 계좌면 ACCOUNT_NO를 비워둬도 됨)")
             brokerage = matched
         if not brokerage:
             raise AccountError("사용 가능한 BROKERAGE 계좌 없음")
