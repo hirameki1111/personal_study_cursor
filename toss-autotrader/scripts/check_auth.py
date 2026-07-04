@@ -35,8 +35,10 @@ def main() -> int:
     except AuthError as e:
         print(f"토큰 발급 실패: {e}")
         print("점검 가이드:")
-        print("  - HTTP 401/403 → 자격증명 오류 (Client ID/Secret 재확인)")
-        print("  - HTTP 404     → 경로 오류 (공식 문서 docs/auth 대조)")
+        print("  - 'IP address not allowed' → 개발자 포털에 현재 공인 IP 미등록")
+        print("    (토스증권 Open API 설정에서 허용 IP 등록 후 재시도)")
+        print("  - HTTP 401 → 자격증명 오류 (Client ID/Secret 재확인)")
+        print("  - HTTP 404 → 경로 오류 (공식 문서 docs/auth 대조)")
         print("  - ConnectError/ConnectTimeout → 도메인·네트워크·방화벽 확인")
         return 1
 
