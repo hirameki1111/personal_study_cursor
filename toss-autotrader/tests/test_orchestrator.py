@@ -1,0 +1,177 @@
+"""Phase 9 Orchestrator 테스트 (제안서 9.4 테스트 플랜).
+
+- 정상 사이클: 시세→검증→신호→승인→실행→적재·알림 순서
+- 보류 조건: halted / 시세 이상 / 신호 없음 / 리스크 거부
+- 사이클 내 예외 격리: 루프 지속·해당 사이클만 보류
+- 거래시간 판정: 정규장·휴장일
+- 모드별 조립: dry_run/paper/live 주입 확인
+"""
+
+from datetime import datetime
+from unittest.mock import MagicMock
+
+import pytest
+
+from src.backtest.paper_broker import PaperBroker
+from src.order.order_executor import OrderExecutor
+from src.orchestrator import KST, Orchestrator, build_orchestrator
+from src.strategy.base import Signal
+
+SETTINGS = {
+    "runtime": {"mode": "dry_run", "poll_interval_sec": 5},
+    "universe": [{"code": "005930", "strategy": "sma_cross"}],
+    "strategies": {"sma_cross": {"short_window": 5, "long_window": 20,
+                                 "qty": 1}},
+    "limits": {"daily_loss_limit": 200000, "max_order_amount": 1000000,
+               "max_position_pct": 20.0, "max_concurrent": 5},
+    "logging": {"db_url": "sqlite:///:memory:"},
+}
+
+CANDLE = {"timestamp": "2026-07-03T00:00:00+09:00", "openPrice": "100",
+          "highPrice": "110", "lowPrice": "90", "closePrice": "105",
+          "volume": "1000", "currency": "KRW"}
+BUY = Signal("005930", "BUY", 1, None, "MARKET", "golden_cross")
+
+
+@pytest.fixture
+def orch():
+    market, account = MagicMock(), MagicMock()
+    account.halted = False
+    account.parse_positions.return_value = {}
+    market.get_price.return_value = {"lastPrice": "70000"}
+    market.validate_price.return_value = True
+    market.get_candles.return_value = {"candles": [CANDLE]}
+    strategy = MagicMock()
+    strategy.params = {"interval": "1d"}
+    strategy.generate.return_value = BUY
+    risk = MagicMock()
+    risk.approve.return_value = (True, None)
+    executor = MagicMock()
+    executor.place_order.return_value = {"status": "DRY_RUN"}
+    store, notifier = MagicMock(), MagicMock()
+    o = Orchestrator(SETTINGS, market, account,
+                     {"005930": ("sma_cross", strategy)}, risk,
+                     executor, store, notifier,
+                     install_signal_handlers=False)
+    return o
+
+
+def test_normal_cycle_full_flow(orch):
+    orch.run_cycle("005930")
+    orch.store.record_signal.assert_called_once()
+    orch.risk.approve.assert_called_once_with(BUY)
+    orch.executor.place_order.assert_called_once()
+    orch.store.record_order.assert_called_once()
+    orch.notifier.send.assert_called_once()
+
+
+def test_halted_account_skips_cycle(orch):
+    orch.account.halted = True
+    orch.run_cycle("005930")
+    orch.market.get_price.assert_not_called()
+
+
+def test_invalid_price_holds_cycle(orch):
+    orch.market.validate_price.return_value = False
+    orch.run_cycle("005930")
+    orch.market.get_candles.assert_not_called()
+    orch.executor.place_order.assert_not_called()
+
+
+def test_no_signal_no_order(orch):
+    orch.strategies["005930"][1].generate.return_value = None
+    orch.run_cycle("005930")
+    orch.risk.approve.assert_not_called()
+    orch.executor.place_order.assert_not_called()
+
+
+def test_risk_reject_records_event_no_order(orch):
+    orch.risk.approve.return_value = (False, "over_order_limit")
+    orch.run_cycle("005930")
+    orch.store.record_risk_event.assert_called_once()
+    orch.executor.place_order.assert_not_called()
+
+
+def test_candles_passed_ascending_and_mapped(orch):
+    older = dict(CANDLE, timestamp="2026-07-02T00:00:00+09:00",
+                 closePrice="90")
+    orch.market.get_candles.return_value = {"candles": [CANDLE, older]}
+    orch.run_cycle("005930")
+    passed = orch.strategies["005930"][1].generate.call_args.args[0]
+    assert [c["close"] for c in passed] == [90.0, 105.0]   # 오름차순
+
+
+def test_paper_market_order_uses_last_price(orch):
+    orch.mode = "paper"
+    orch.run_cycle("005930")
+    kwargs = orch.executor.place_order.call_args.kwargs
+    assert kwargs["price"] == 70000.0          # 현재가를 체결 기준가로
+
+
+def test_cycle_exception_isolated(orch):
+    orch.market.get_price.side_effect = RuntimeError("boom")
+    orch.safe_cycle("005930")                  # 예외 전파 없어야 함
+    orch.store.record_log.assert_called_once()
+
+
+# ── 거래시간 (Step 9-2) ───────────────────────────────────
+
+CAL_OPEN = {"today": {"date": "2026-07-03", "integrated": {
+    "regularMarket": {"startTime": "2026-07-03T09:00:00+09:00",
+                      "endTime": "2026-07-03T15:30:00+09:00"}}}}
+CAL_CLOSED = {"today": {"date": "2026-07-04", "integrated": None}}
+
+
+def test_trading_time_within_regular_session(orch):
+    orch.market.get_market_calendar.return_value = CAL_OPEN
+    now = datetime(2026, 7, 3, 10, 0, tzinfo=KST)
+    assert orch.is_trading_time(now) is True
+    after = datetime(2026, 7, 3, 16, 0, tzinfo=KST)
+    orch._calendar_cache = None
+    assert orch.is_trading_time(after) is False
+
+
+def test_holiday_returns_false(orch):
+    orch.market.get_market_calendar.return_value = CAL_CLOSED
+    now = datetime(2026, 7, 4, 10, 0, tzinfo=KST)
+    assert orch.is_trading_time(now) is False
+
+
+def test_calendar_cached_per_day(orch):
+    orch.market.get_market_calendar.return_value = CAL_OPEN
+    now = datetime(2026, 7, 3, 10, 0, tzinfo=KST)
+    orch.is_trading_time(now)
+    orch.is_trading_time(now)
+    assert orch.market.get_market_calendar.call_count == 1
+
+
+# ── 조립 (Step 9-1) ───────────────────────────────────────
+
+CREDS = {"client_id": "id", "client_secret": "sec", "account_no": None,
+         "telegram_bot_token": None, "telegram_chat_id": None}
+
+
+def _settings(mode):
+    return {**SETTINGS, "runtime": {"mode": mode, "poll_interval_sec": 5},
+            "strategies": {"sma_cross": {"short_window": 5,
+                                         "long_window": 20, "qty": 1,
+                                         "stock_code": "005930"}}}
+
+
+def test_build_dry_run_injects_dry_executor():
+    o = build_orchestrator(_settings("dry_run"), CREDS,
+                           install_signal_handlers=False)
+    assert isinstance(o.executor, OrderExecutor) and o.executor.dry_run
+
+
+def test_build_paper_injects_paper_broker():
+    o = build_orchestrator(_settings("paper"), CREDS,
+                           install_signal_handlers=False)
+    assert isinstance(o.executor, PaperBroker)
+
+
+def test_build_live_injects_live_executor():
+    o = build_orchestrator(_settings("live"), CREDS,
+                           install_signal_handlers=False)
+    assert isinstance(o.executor, OrderExecutor)
+    assert o.executor.dry_run is False

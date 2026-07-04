@@ -1,0 +1,15 @@
+# 제안서 10.2 systemd 유닛 예시 (Phase 10 배포 시 사용)
+# 재기동 시 reconcile 선행 확인 필수 (Step 10-2)
+[Unit]
+Description=Toss AutoTrader
+After=network-online.target
+
+[Service]
+WorkingDirectory=/opt/toss-autotrader
+EnvironmentFile=/opt/toss-autotrader/.env
+ExecStart=/opt/toss-autotrader/.venv/bin/python -m src.orchestrator
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

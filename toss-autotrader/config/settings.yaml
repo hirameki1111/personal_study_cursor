@@ -1,0 +1,35 @@
+# 제안서 부록 C ― settings.yaml 전체 스키마
+# 핵심 원칙 ②: 실행 모드(dry_run/paper/live) 전환은 이 파일 1곳에서만 수행
+
+runtime:
+  mode: dry_run            # dry_run | paper | live (전환은 이곳 1곳)
+  poll_interval_sec: 5
+  market: KRX              # KRX | US
+
+universe:
+  - { code: "005930", strategy: "sma_cross" }
+
+strategies:
+  sma_cross:
+    stock_code: "005930"
+    short_window: 5
+    long_window: 20
+    qty: 1
+
+limits:
+  daily_loss_limit: 200000    # 금액 기준 (구현과 일치 필수)
+  max_order_amount: 1000000
+  max_position_pct: 20.0
+  max_concurrent: 5
+  open_order_timeout_min: 10
+
+sizing:
+  model: fixed_fraction       # fixed_fraction | volatility_target
+  fraction_pct: 5.0
+
+alerts:
+  channel: telegram           # telegram | email
+
+logging:
+  level: INFO
+  db_url: "sqlite:///data/trade.db"
