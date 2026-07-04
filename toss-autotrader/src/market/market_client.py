@@ -101,6 +101,14 @@ class MarketDataClient:
             params["before"] = before
         return self._get("/api/v1/candles", params, group="MARKET_DATA_CHART")
 
+    def get_warnings(self, symbol: str) -> list[dict]:
+        """매수 유의사항·VI 발동 정보. 활성 항목만 반환됨(명세).
+
+        warningType: LIQUIDATION_TRADING / OVERHEATED / INVESTMENT_WARNING /
+        INVESTMENT_RISK / VI_* / STOCK_WARRANTS (unknown 값 허용)
+        """
+        return self._get(f"/api/v1/stocks/{symbol}/warnings", {})
+
     def validate_price(self, symbol: str, data: dict) -> bool:
         """결측·0·음수·급변 검증. False면 해당 사이클 전체 보류 (Step 2-3).
 
