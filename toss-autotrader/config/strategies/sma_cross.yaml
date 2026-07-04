@@ -1,0 +1,7 @@
+# SMA 교차 전략 파라미터 (Phase 5)
+# ※ 파이프라인 검증용 예시 전략 ― 수익 보장 아님 (제안서 5.3 고지)
+sma_cross:
+  stock_code: "005930"
+  short_window: 5
+  long_window: 20
+  qty: 1

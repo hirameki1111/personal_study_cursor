@@ -1,0 +1,9 @@
+[project]
+name = "toss-autotrader"
+version = "0.1.0"
+description = "토스증권 Open API 기반 규칙형 자동매매 시스템 (개인 투자 운용 목적)"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
