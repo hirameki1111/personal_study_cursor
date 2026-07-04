@@ -27,7 +27,7 @@ def test_packages_importable():
 
 
 def test_settings_yaml_schema():
-    settings = yaml.safe_load((ROOT / "config" / "settings.yaml").read_text())
+    settings = yaml.safe_load((ROOT / "config" / "settings.yaml").read_text(encoding="utf-8"))
     for section in ("runtime", "universe", "strategies", "limits",
                     "sizing", "alerts", "logging"):
         assert section in settings, f"settings.yaml에 {section} 섹션 누락"
@@ -36,11 +36,11 @@ def test_settings_yaml_schema():
 
 
 def test_env_example_has_required_keys():
-    text = (ROOT / ".env.example").read_text()
+    text = (ROOT / ".env.example").read_text(encoding="utf-8")
     for key in ("TOSS_CLIENT_ID", "TOSS_CLIENT_SECRET", "ACCOUNT_NO"):
         assert key in text
 
 
 def test_env_not_tracked_by_git():
-    gitignore = (ROOT / ".gitignore").read_text().splitlines()
+    gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
     assert ".env" in gitignore
