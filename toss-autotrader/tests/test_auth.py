@@ -41,6 +41,19 @@ def test_token_issued_and_expiry_set(am):
         time.time() + 3600 - REFRESH_MARGIN_SEC, abs=5)
 
 
+def test_token_request_uses_body_credentials(am):
+    """공식 스펙: 자격증명은 form body ― Basic 헤더 미사용."""
+    with patch.object(am._http, "post", return_value=_mock_resp()) as p:
+        am.get_token()
+    kwargs = p.call_args.kwargs
+    data = kwargs.get("data") or (p.call_args.args[1]
+                                  if len(p.call_args.args) > 1 else {})
+    assert data["grant_type"] == "client_credentials"
+    assert data["client_id"] == "test-id"
+    assert data["client_secret"] == "test-secret-XYZZY"
+    assert "Authorization" not in (kwargs.get("headers") or {})
+
+
 def test_token_cached_no_duplicate_issue(am):
     with patch.object(am._http, "post", return_value=_mock_resp()) as p:
         am.get_token()

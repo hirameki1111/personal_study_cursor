@@ -27,12 +27,17 @@ def main() -> int:
         print("오류: .env에 TOSS_CLIENT_ID / TOSS_CLIENT_SECRET을 기재하세요.")
         return 1
 
+    # 주의: 클라이언트당 유효 토큰은 1개. 여기서 발급하면 기존 토큰은 즉시 무효화됨
+    #       (자동매매 프로세스 가동 중에는 이 스크립트를 실행하지 말 것)
     am = AuthManager(client_id, client_secret)
     try:
         token = am.get_token()
     except AuthError as e:
         print(f"토큰 발급 실패: {e}")
-        print("점검: ① 자격증명 ② BASE_URL·경로 [확인 필요] ③ 네트워크")
+        print("점검 가이드:")
+        print("  - HTTP 401/403 → 자격증명 오류 (Client ID/Secret 재확인)")
+        print("  - HTTP 404     → 경로 오류 (공식 문서 docs/auth 대조)")
+        print("  - ConnectError/ConnectTimeout → 도메인·네트워크·방화벽 확인")
         return 1
 
     print(f"토큰 발급 성공: {token[:6]}{'*' * 10} (마스킹)")
