@@ -2,7 +2,7 @@
 # 핵심 원칙 ②: 실행 모드(dry_run/paper/live) 전환은 이 파일 1곳에서만 수행
 
 runtime:
-  mode: dry_run            # dry_run | paper | live (전환은 이곳 1곳)
+  mode: paper              # dry_run | paper | live (전환은 이곳 1곳)
   poll_interval_sec: 5
   market: KRX              # KRX | US
 

@@ -13,9 +13,9 @@
 | 2026-07-05 | Stage 0 로컬 `--once` 재실행 | 1차 시도 403(IP address not allowed) ― 공인 IP 변경이 원인, 포털 허용 IP 재등록으로 조치 |
 | 2026-07-05 | Stage 0 로컬 `--once` 재실행(조치 후) | **정상** ― 토큰 발급·accountSeq 확인·사이클 완료(005930, 신호 없음)·안전 종료, ERROR 0건 → **Stage 0 DoD 전 항목 충족** |
 | 2026-07-05 | Stage 0 시크릿 점검 | .env git 미추적(check-ignore)·커밋 이력 0건 확인 |
-| | Stage 1 Telegram 알림 수신 확인 (`scripts/check_telegram.py`) | (기입) |
-| | Stage 1 `mode: paper` 전환 | (기입) |
-| | Stage 1 가동 방식 확정 (A 로컬 / B 서버) | (기입) |
+| 2026-07-05 | Stage 1 Telegram 알림 수신 확인 (`scripts/check_telegram.py`) | 발송 성공(API 200) + `--once` 기동·종료 알림 실발송 확인 ― 초기 chat_id 오기재 2회는 getUpdates 조회로 교정 |
+| 2026-07-05 | Stage 1 `mode: paper` 전환 | 완료 (settings.yaml 1곳, 한도는 실전 동일 유지: 손실한도 20만·주문상한 100만·포지션 20%) |
+| 2026-07-05 | Stage 1 가동 방식 확정 (A 로컬 / B 서버) | **A. 로컬 PC 수동 가동** (G3 권장안) ― PC 절전 해제 설정 필요, G4 이후 B(서버) 검토 |
 
 ## G3 ― 페이퍼트레이딩 (목표: 정상 10/10)
 
