@@ -114,6 +114,35 @@ def test_cycle_exception_isolated(orch):
     orch.store.record_log.assert_called_once()
 
 
+def test_paper_fill_records_execution(orch):
+    orch.mode = "paper"
+    orch.executor.place_order.return_value = {"status": "FILLED",
+                                              "price": 70070.0}
+    orch.run_cycle("005930")
+    kwargs = orch.store.record_execution.call_args
+    assert kwargs.args[2] if len(kwargs.args) > 2 else \
+        kwargs.kwargs["fill_price"] == 70070.0
+
+
+def test_dry_run_no_execution_record(orch):
+    orch.executor.place_order.return_value = {"status": "DRY_RUN"}
+    orch.run_cycle("005930")
+    orch.store.record_execution.assert_not_called()
+
+
+def test_shutdown_sends_daily_report(orch):
+    """G3 조건③: 안전 종료 시 일일 리포트 자동 발송."""
+    orch.store.daily_summary.return_value = {
+        "date": "2026-07-06", "orders": 1, "fills": 1,
+        "fill_amount": 70000.0, "fees": 10.5, "rejects": 0,
+        "reject_reasons": [], "errors": 0}
+    orch.risk.daily_pnl = 0.0
+    orch.shutdown()
+    sent = [c.args[0] for c in orch.notifier.send.call_args_list]
+    assert any("일일 리포트" in t for t in sent)
+    assert any("■ 종료" in t for t in sent)
+
+
 # ── 거래시간 (Step 9-2) ───────────────────────────────────
 
 CAL_OPEN = {"today": {"date": "2026-07-03", "integrated": {

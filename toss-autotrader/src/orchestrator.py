@@ -151,6 +151,11 @@ class Orchestrator:
         self.store.record_order(order_id, str(uuid.uuid4()),
                                 sig.stock_code, sig.side, sig.quantity,
                                 exec_price, result.get("status", "PENDING"))
+        if result.get("status") == "FILLED":   # 페이퍼 즉시 체결 → 체결 기록
+            self.store.record_execution(
+                str(uuid.uuid4()), order_id,
+                fill_price=result.get("price") or exec_price or 0.0,
+                fill_qty=sig.quantity)
         self.notifier.send(f"주문[{self.mode}]: {sig.side} {sig.stock_code} "
                            f"x{sig.quantity} → {result.get('status')}")
         # [Phase 9 후속: live 상태 폴링(sync_status) → 체결 확인 후 reconcile]
@@ -182,9 +187,18 @@ class Orchestrator:
             self.shutdown()
 
     def shutdown(self) -> None:
-        logger.info("안전 종료: 상태 저장·알림")
+        logger.info("안전 종료: 상태 저장·일일 리포트·알림")
         self.store.record_log("INFO", "orchestrator",
                               f"shutdown (mode={self.mode})")
+        try:                                   # 리포트 실패도 종료를 막지 않음
+            from src.monitor.report import send_daily_report
+            pnl = getattr(self.risk, "daily_pnl", None)
+            if not isinstance(pnl, (int, float)):
+                pnl = None
+            send_daily_report(self.store, self.notifier,
+                              daily_pnl=pnl, mode=self.mode)
+        except Exception as e:
+            logger.error(f"일일 리포트 생성 실패: {type(e).__name__}")
         self.notifier.send(f"■ 종료 (mode={self.mode})")
 
 
