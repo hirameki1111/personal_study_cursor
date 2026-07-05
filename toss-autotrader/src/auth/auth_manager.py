@@ -16,9 +16,10 @@ import time
 
 import httpx
 from loguru import logger
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import (retry, retry_if_not_exception_type,
+                      stop_after_attempt, wait_exponential)
 
-from src.core.exceptions import AuthError
+from src.core.exceptions import AuthError, AuthRejectedError
 
 BASE_URL = "https://openapi.tossinvest.com"
 TOKEN_PATH = "/oauth2/token"
@@ -35,6 +36,7 @@ class AuthManager:
 
     @retry(stop=stop_after_attempt(3),
            wait=wait_exponential(multiplier=1, min=2, max=20),
+           retry=retry_if_not_exception_type(AuthRejectedError),
            reraise=True)   # 한계 초과 시 RetryError가 아닌 AuthError를 그대로 전파
     def _issue_token(self) -> None:
         try:
@@ -46,10 +48,14 @@ class AuthManager:
             resp.raise_for_status()
         except httpx.HTTPStatusError as e:
             # 서버가 거부한 경우: 상태코드·응답 앞부분만 로깅 (Secret 미포함)
+            code = e.response.status_code
             body = e.response.text[:200]
-            logger.error(f"토큰 발급 거부 HTTP {e.response.status_code}: {body}")
-            raise AuthError(
-                f"token issue rejected: HTTP {e.response.status_code}") from e
+            logger.error(f"토큰 발급 거부 HTTP {code}: {body}")
+            if code < 500:
+                # 4xx = 확정 거부(IP 미등록·자격증명 오류) ― 재시도 무의미
+                raise AuthRejectedError(
+                    f"token issue rejected: HTTP {code}") from e
+            raise AuthError(f"token issue rejected: HTTP {code}") from e
         except httpx.HTTPError as e:
             # 네트워크·DNS·타임아웃 등: 예외 타입으로 원인 구분
             logger.error(f"토큰 발급 실패({type(e).__name__}) ― 네트워크·도메인 확인")

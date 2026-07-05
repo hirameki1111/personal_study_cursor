@@ -70,13 +70,28 @@ def test_reissue_once_when_expired(am):
     assert p.call_count == 2
 
 
-def test_invalid_credential_raises_auth_error_after_retries(am):
+def test_network_error_retries_then_auth_error(am):
     import httpx
     with patch.object(am._http, "post",
-                      side_effect=httpx.HTTPError("401")) as p:
+                      side_effect=httpx.HTTPError("timeout")) as p:
         with pytest.raises(AuthError):
             am.get_token()
-    assert p.call_count == 3               # 지수 백오프 3회 재시도
+    assert p.call_count == 3               # 네트워크 오류는 3회 재시도
+
+
+def test_4xx_rejection_no_retry(am):
+    """IP 미등록(403)·자격증명 오류(401)는 확정 거부 ― 재시도 없음."""
+    import httpx
+    from src.core.exceptions import AuthRejectedError
+    resp = MagicMock(status_code=403,
+                     text='{"error":"access_denied"}')
+    err = httpx.HTTPStatusError("403", request=MagicMock(), response=resp)
+    bad = MagicMock()
+    bad.raise_for_status.side_effect = err
+    with patch.object(am._http, "post", return_value=bad) as p:
+        with pytest.raises(AuthRejectedError, match="HTTP 403"):
+            am.get_token()
+    assert p.call_count == 1               # 재시도 무의미 ― 즉시 실패
 
 
 def test_bearer_header_format(am):

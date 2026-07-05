@@ -12,6 +12,13 @@ class AuthError(TradingError):
     """인증·토큰 발급 실패 ― 거래 중단 트리거"""
 
 
+class AuthRejectedError(AuthError):
+    """서버가 확정 거부한 인증 실패(4xx: IP 미등록·자격증명 오류).
+
+    재시도해도 결과가 같으므로 지수 백오프 재시도 대상에서 제외된다.
+    """
+
+
 class MarketError(TradingError):
     """시세 조회·검증 실패"""
 

@@ -114,6 +114,33 @@ def test_cycle_exception_isolated(orch):
     orch.store.record_log.assert_called_once()
 
 
+def test_loop_survives_trading_time_failure(orch):
+    """거래시간 조회 실패(인증 403 등)가 프로세스를 죽이지 않아야 함.
+
+    연속 5회 실패 시 안전 종료로 수렴 (traceback 크래시 금지).
+    """
+    from unittest.mock import patch as _patch
+    orch.market.get_market_calendar.side_effect = RuntimeError("403")
+    orch.store.daily_summary.return_value = {
+        "date": "d", "orders": 0, "fills": 0, "fill_amount": 0.0,
+        "fees": 0.0, "rejects": 0, "reject_reasons": [], "errors": 0}
+    orch.risk.daily_pnl = 0.0
+    with _patch("src.orchestrator.time.sleep"):
+        orch.run(once=False)                   # 예외 전파 없이 반환해야 함
+    sent = [c.args[0] for c in orch.notifier.send.call_args_list]
+    assert any("연속 오류" in t for t in sent)  # 안전 종료 알림
+
+
+def test_startup_preflight_failure_aborts(orch):
+    """기동 사전 점검 실패(IP 미등록 등) 시 기동 거부 + 알림."""
+    hc = __import__("unittest.mock", fromlist=["MagicMock"]).MagicMock()
+    hc.check.return_value = False
+    orch.healthcheck = hc
+    assert orch.startup() is False
+    sent = [c.args[0] for c in orch.notifier.send.call_args_list]
+    assert any("기동 실패" in t for t in sent)
+
+
 def test_paper_fill_records_execution(orch):
     orch.mode = "paper"
     orch.executor.place_order.return_value = {"status": "FILLED",
