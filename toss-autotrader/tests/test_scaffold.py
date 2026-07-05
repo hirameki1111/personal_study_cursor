@@ -31,8 +31,9 @@ def test_settings_yaml_schema():
     for section in ("runtime", "universe", "strategies", "limits",
                     "sizing", "alerts", "logging"):
         assert section in settings, f"settings.yaml에 {section} 섹션 누락"
-    # 안전 원칙: 초기 모드는 반드시 dry_run
-    assert settings["runtime"]["mode"] == "dry_run"
+    # 모드는 유효값만 허용 (운용 단계에 따라 dry_run→paper→live로 전환됨.
+    # live 진입은 G4·G5 게이트 통과가 전제 ― docs/gates.md 확인)
+    assert settings["runtime"]["mode"] in ("dry_run", "paper", "live")
 
 
 def test_env_example_has_required_keys():
