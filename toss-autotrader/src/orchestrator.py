@@ -55,9 +55,15 @@ class Orchestrator:
         self._running = False
 
     def startup(self) -> bool:
-        """기동 절차. live 모드는 reconcile 필수 ― 불일치 시 기동 거부."""
+        """기동 절차. 사전 점검(토큰·API) 실패 시 기동 거부 + 알림."""
         logger.info(f"기동: mode={self.mode}, "
                     f"universe={list(self.strategies)}")
+        if self.healthcheck and not self.healthcheck.check():
+            logger.error("기동 사전 점검 실패 ― IP 등록·자격증명·네트워크 확인")
+            self.notifier.send(
+                "⛔ 기동 실패: 토큰/API 사전 점검 실패 "
+                "― 공인 IP 변경(포털 재등록) 여부를 먼저 확인하세요")
+            return False
         if self.mode == "live":
             positions = self.account.parse_positions(
                 self.account.get_holdings())
@@ -166,9 +172,26 @@ class Orchestrator:
         if not self.startup():
             return
         cycle_count = 0
+        loop_errors = 0                        # 루프 수준 연속 오류 (사이클 밖)
         try:
             while self._running:
-                if not once and not self.is_trading_time():
+                try:
+                    trading = once or self.is_trading_time()
+                except Exception as e:
+                    # 거래시간 조회 실패(인증·네트워크)도 프로세스를 죽이지 않음
+                    loop_errors += 1
+                    logger.error(f"루프 오류 {loop_errors}회: "
+                                 f"{type(e).__name__}: {e}")
+                    self.store.record_log("ERROR", "orchestrator",
+                                          f"loop error: {type(e).__name__}")
+                    if loop_errors >= 5:
+                        self.notifier.send("⛔ 루프 연속 오류 5회 ― 안전 종료 "
+                                           "(IP 등록·네트워크 확인)")
+                        break
+                    time.sleep(max(self.poll_interval * 12, 60))
+                    continue
+                loop_errors = 0
+                if not trading:
                     logger.info("비거래시간 ― 대기")
                     time.sleep(max(self.poll_interval * 12, 60))
                     continue
