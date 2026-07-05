@@ -10,7 +10,8 @@
 |---|---|---|
 | 2026-07-05 | Stage 0 익일 재확인 (원격: pytest 115·시크릿·전송0건) | 완료 ― gates.md 기입 |
 | 2026-07-05 | Stage 0 로컬 pytest 재실행 | 115 passed (10.5s) |
-| 2026-07-05 | Stage 0 로컬 `--once` 재실행 | **미완** ― 토큰 발급 403(IP address not allowed). 공인 IP 변경으로 포털 허용 IP 재등록 필요. 사이클 격리·안전 종료는 정상 동작. IP 재등록 후 재실행 예정 |
+| 2026-07-05 | Stage 0 로컬 `--once` 재실행 | 1차 시도 403(IP address not allowed) ― 공인 IP 변경이 원인, 포털 허용 IP 재등록으로 조치 |
+| 2026-07-05 | Stage 0 로컬 `--once` 재실행(조치 후) | **정상** ― 토큰 발급·accountSeq 확인·사이클 완료(005930, 신호 없음)·안전 종료, ERROR 0건 → **Stage 0 DoD 전 항목 충족** |
 | 2026-07-05 | Stage 0 시크릿 점검 | .env git 미추적(check-ignore)·커밋 이력 0건 확인 |
 | | Stage 1 Telegram 알림 수신 확인 (`scripts/check_telegram.py`) | (기입) |
 | | Stage 1 `mode: paper` 전환 | (기입) |
