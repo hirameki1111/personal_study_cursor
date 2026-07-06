@@ -7,7 +7,11 @@ runtime:
   market: KRX              # KRX | US
 
 universe:
-  - { code: "005930", strategy: "sma_cross" }
+  - { code: "005930", strategy: "sma_cross" }   # 삼성전자
+  - { code: "069500", strategy: "sma_cross" }   # KODEX 200 (ETF)
+  # 주의: ETF는 매도 시 증권거래세 면제 ― 현재 비용 모델은 전 종목에
+  # 거래세(0.0015)를 일괄 적용하므로 ETF 매도 수취액이 실제보다 낮게
+  # 추정됨(보수적 방향). 정밀화는 G4 실체결 대사 시 종목유형별로 반영 예정
 
 strategies:
   sma_cross:
