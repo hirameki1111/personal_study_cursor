@@ -226,6 +226,23 @@ def test_build_paper_injects_paper_broker():
     assert isinstance(o.executor, PaperBroker)
 
 
+def test_build_multi_symbol_universe():
+    """종목 추가 = universe 항목 추가만으로 종목별 전략 인스턴스 생성."""
+    s = _settings("dry_run")
+    s["universe"] = [{"code": "005930", "strategy": "sma_cross"},
+                     {"code": "069500", "strategy": "sma_cross"}]
+    o = build_orchestrator(s, CREDS, install_signal_handlers=False)
+    assert set(o.strategies) == {"005930", "069500"}
+    # 종목별 인스턴스가 분리되고 stock_code가 각각 주입되어야 함
+    _, st1 = o.strategies["005930"]
+    _, st2 = o.strategies["069500"]
+    assert st1 is not st2
+    assert st1.params["stock_code"] == "005930"
+    assert st2.params["stock_code"] == "069500"
+    # 공통 파라미터는 동일 (기존과 동일 설정 선택)
+    assert st1.params["short_window"] == st2.params["short_window"]
+
+
 def test_build_live_injects_live_executor():
     o = build_orchestrator(_settings("live"), CREDS,
                            install_signal_handlers=False)
